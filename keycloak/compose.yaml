@@ -1,0 +1,81 @@
+# =============================================================================
+# Phase 1 stack: Caddy (auto-HTTPS) -> Keycloak 26 -> PostgreSQL
+# =============================================================================
+# - Only Caddy publishes host ports (80/443). Keycloak and Postgres are
+#   internal-only, so Docker never punches holes in your firewall for them.
+# - Postgres data lives on the SEPARATE block volume (bind mount to
+#   ${DATA_MOUNT}), prepared safely by scripts/bootstrap.sh.
+# - All secrets and tunables come from .env (never committed).
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG}          # pin the MAJOR — dumps are version-bound
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${DATA_MOUNT}:/var/lib/postgresql/data      # <-- the separate block volume
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_IMAGE_TAG}
+    restart: unless-stopped
+    command: ["start"]              # not --optimized: lets env vars apply at runtime (simpler for Phase 1)
+    environment:
+      # --- Database ---
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: ${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # --- First-boot admin (creates the initial admin on an EMPTY db only).
+      #     After first login: create a real admin user, then delete these two
+      #     lines from .env and re-run `docker compose up -d`. ---
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
+      # --- Behind Caddy (TLS terminates at the proxy) ---
+      KC_HOSTNAME: https://${PUBLIC_HOSTNAME}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      # --- Health endpoint on the management port (9000) for healthcheck.sh ---
+      KC_HEALTH_ENABLED: "true"
+      # --- Keep the JVM modest: this VM is small. Raise before real users. ---
+      JAVA_OPTS_APPEND: "-Xmx768m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    expose:
+      - "8080"     # internal only — reached by Caddy, never published to the host
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # persists issued certs (lives on disposable root disk)
+      - caddy_config:/config
+    depends_on: [keycloak]
+    networks: [backend]
+
+networks:
+  backend:
+
+volumes:
+  caddy_data:
+  caddy_config:

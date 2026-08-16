@@ -1,0 +1,18 @@
+# Secrets must NEVER reach a public repo. Commit .env.example, never .env.
+.env
+*.env
+!.env.example
+
+# Keys / certs / credentials
+*.key
+*.pem
+*.pfx
+*.p12
+id_*
+secrets/
+
+# Local restic caches, dumps, backups
+*.dump
+*.sql
+backups/
+.restic-cache/

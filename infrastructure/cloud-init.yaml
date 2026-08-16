@@ -1,0 +1,99 @@
+#cloud-config
+# =============================================================================
+# Sovereign Collaboration Platform — Phase 1 baseline (Keycloak host)
+# =============================================================================
+# This file is PUBLIC and committed to Git. It must NEVER contain secrets.
+# It does only the deterministic, credential-free baseline:
+#   - creates an admin user + installs the SSH public key
+#   - hardens SSH
+#   - installs Docker (official "resolute" repo), git, restic, ufw
+#   - sets the firewall (22/80/443 only)
+#   - clones the PUBLIC config repo to /opt/sovereign-cloud
+#
+# It deliberately does NOT bring up the app stack, because that needs the
+# .env secrets, which you supply by hand. See scripts/bootstrap.sh.
+#
+# HOW TO USE: paste the entire contents of this file into xneelo's
+# "config script / user-data" field when creating the instance.
+#
+# EDIT THESE TWO PLACEHOLDERS before pasting:
+#   1. ssh_authorized_keys  -> your real public key (contents of
+#                              ~/.ssh/sovereign-cloud-admin.pub)
+#   2. the git clone URL     -> your real public repo
+# =============================================================================
+
+hostname: auth
+fqdn: auth.example.co.za          # <-- set to your real DNS name
+timezone: Africa/Johannesburg
+package_update: true
+package_upgrade: true
+
+users:
+  - name: admin
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA...REPLACE_WITH_YOUR_PUBLIC_KEY... sovereign-cloud-admin
+
+# Harden SSH: no root login, no passwords (key-only).
+ssh_pwauth: false
+disable_root: true
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-hardening.conf
+    permissions: "0644"
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      X11Forwarding no
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - ufw
+  - restic
+
+runcmd:
+  # --- Firewall: default deny inbound, allow SSH/HTTP/HTTPS only -------------
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # --- Docker Engine from Docker's official repo (native 26.04 support) ------
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - >-
+    echo "deb [arch=$(dpkg --print-architecture)
+    signed-by=/etc/apt/keyrings/docker.asc]
+    https://download.docker.com/linux/ubuntu
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable"
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y
+    docker-ce docker-ce-cli containerd.io
+    docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - usermod -aG docker admin
+
+  # --- Clone the PUBLIC config repo (no credentials needed) ------------------
+  - git clone https://github.com/YOUR_USER/sovereign-cloud.git /opt/sovereign-cloud
+  - chown -R admin:admin /opt/sovereign-cloud
+
+  # --- Restart SSH so hardening takes effect ---------------------------------
+  - systemctl restart ssh
+
+final_message: |
+  ============================================================
+  Baseline ready. Next steps (as the 'admin' user over SSH):
+    1. cd /opt/sovereign-cloud/keycloak
+    2. cp .env.example .env  &&  edit .env with real secrets
+    3. sudo ../scripts/bootstrap.sh
+    4. (rebuild only) sudo ../scripts/restore.sh
+  ============================================================

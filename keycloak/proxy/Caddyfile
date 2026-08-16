@@ -1,0 +1,24 @@
+# Caddy automatically obtains and renews a Let's Encrypt certificate for the
+# hostname below, and forwards X-Forwarded-* headers (which is why Keycloak is
+# set to KC_PROXY_HEADERS=xforwarded).
+#
+# {$VAR} placeholders are filled from the environment (set in compose.yaml).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$PUBLIC_HOSTNAME} {
+	reverse_proxy keycloak:8080
+}
+
+# --- Heavy destroy/rebuild testing? ------------------------------------------
+# Let's Encrypt rate-limits certificate issuance per domain per week. If you
+# rebuild many times in a row and hit the limit, temporarily point Caddy at the
+# STAGING CA by uncommenting the block below (staging certs are untrusted by
+# browsers, but prove the flow without burning your quota), then remove it.
+#
+# {
+# 	acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+# 	email {$ACME_EMAIL}
+# }
