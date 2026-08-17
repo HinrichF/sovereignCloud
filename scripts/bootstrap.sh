@@ -9,12 +9,54 @@
 # =============================================================================
 set -euo pipefail
 
+[ "$(id -u)" -eq 0 ] || { echo "ERROR: run with sudo (this installs packages and mounts volumes)."; exit 1; }
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${REPO_DIR}/keycloak/.env"
 
 [ -f "$ENV_FILE" ] || { echo "ERROR: ${ENV_FILE} not found. Copy .env.example to .env and fill it in."; exit 1; }
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
+
+# --- Install Docker from the official repo (idempotent) ----------------------
+# Done here, not in cloud-init: xneelo's user-data filter blocks writes to
+# /etc/apt/... in the payload. In this post-boot root shell, no filter applies.
+install_docker() {
+  if command -v docker >/dev/null 2>&1; then
+    echo "==> Docker already installed. Skipping."
+    return
+  fi
+  echo "==> Installing Docker from the official repository..."
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+  local codename; codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${codename} stable" \
+    > /etc/apt/sources.list.d/docker.list
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  systemctl enable --now docker
+  usermod -aG docker admin || true
+  echo "==> Docker installed (log out/in for non-sudo 'docker' access)."
+}
+
+# --- Full SSH hardening drop-in (idempotent) ---------------------------------
+# Also blocked in cloud-init user-data (writes /etc/ssh/...), so applied here.
+# cloud-init already set ssh_pwauth:false + disable_root:true natively at boot;
+# this reinforces that and adds the remaining directives.
+harden_ssh() {
+  echo "==> Applying SSH hardening..."
+  cat > /etc/ssh/sshd_config.d/10-hardening.conf <<'CONF'
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+X11Forwarding no
+CONF
+  chmod 0644 /etc/ssh/sshd_config.d/10-hardening.conf
+  systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+  echo "==> SSH hardened (key-only, no root login)."
+}
 
 # --- Prepare the SEPARATE Postgres data volume -------------------------------
 # The single most dangerous step in the whole project: on a REBUILD, the volume
@@ -38,10 +80,14 @@ prepare_data_volume() {
     echo "==> Added ${mnt} to /etc/fstab (mount by UUID)."
   fi
   mountpoint -q "$mnt" || mount "$mnt"
+  mkdir -p "${mnt}/pgdata"          # Postgres uses this subdir (PGDATA), not the
+                                    # volume root, which holds lost+found on ext4
   chown -R 999:999 "$mnt"   # official postgres image runs as uid/gid 999
   echo "==> Data volume ready at ${mnt}."
 }
 
+install_docker
+harden_ssh
 prepare_data_volume
 
 # --- Bring up the stack ------------------------------------------------------
