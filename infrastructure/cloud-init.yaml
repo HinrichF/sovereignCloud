@@ -34,6 +34,7 @@ package_update: true
 package_upgrade: true
 
 users:
+  - default
   - name: admin
     groups: [sudo]
     shell: /bin/bash
