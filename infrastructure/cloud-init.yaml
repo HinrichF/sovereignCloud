@@ -34,7 +34,7 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-ed25519 AAAA...REPLACE_WITH_YOUR_PUBLIC_KEY... sovereign-cloud-admin
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCpZbLWeamW4L8YPq1w/+YImL34eS8wn+WcVf08jikzyLgwM6uakxCtXv0K4V5jI2Wx6d8MNX120OBjEZX9hSqvuKPKMUkbE21mhPTT7lSTffzcNtk4wfY+5+9vjGE7LsGxWauGhSKRzrJyvXDd+LiCpEoNjr1zuXpX4otGjZauPkVPxFkYD9uYG4wZE4lwD0iIP/tLl+N2aQxrZIiDjY3yFaSDr+pHqfyj1A2J+l0K7+K5fDGZHKH2cvoY3V+FfB6DI+QVwA4Cn3XzQqYVB+PsHqZ+ecJIpcESTev9cAAC1l3OSJSKVUUejHHhbhxapLc4D1gT+bkIBiJJW61uf1hZ Generated-by-Nova
 
 # Harden SSH: no root login, no passwords (key-only).
 ssh_pwauth: false
