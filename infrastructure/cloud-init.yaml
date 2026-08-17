@@ -39,8 +39,7 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCpZbLWeamW4L8YPq1w/+YImL34eS8wn+WcVf08jikzyLgwM6uakxCtXv0K4V5jI2Wx6d8MNX120OBjEZX9hSqvuKPKMUkbE21mhPTT7lSTffzcNtk4wfY+5+9vjGE7LsGxWauGhSKRzrJyvXDd+LiCpEoNjr1zuXpX4otGjZauPkVPxFkYD9uYG4wZE4lwD0iIP/tLl+N2aQxrZIiDjY3yFaSDr+pHqfyj1A2J+l0K7+K5fDGZHKH2cvoY3V+FfB6DI+QVwA4Cn3XzQqYVB+PsHqZ+ecJIpcESTev9cAAC1l3OSJSKVUUejHHhbhxapLc4D1gT+bkIBiJJW61uf1hZ Generated-by-Nova
-
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHEdYL3EdIjLU0qiSTNSwEGzxpaCJIht+Ozn7mSUc86Q sovereign-cloud-admin
 # Baseline SSH hardening via native cloud-init directives. These are
 # filter-safe (no system-config path appears in the payload). bootstrap.sh adds
 # the full hardening drop-in after boot.
