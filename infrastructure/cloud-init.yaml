@@ -1,6 +1,6 @@
 #cloud-config
 # =============================================================================
-# Sovereign Collaboration Platform — Phase 1 baseline (Keycloak host)
+# Sovereign Collaboration Platform -- Phase 1 baseline (Keycloak host)
 # =============================================================================
 # This file is PUBLIC and committed to Git. It must NEVER contain secrets.
 #
@@ -15,7 +15,7 @@
 #   - installing Docker      (writes system apt config)
 #   - full SSH hardening drop-in (writes sshd config)
 #
-# cloud-init does NOT bring up the app stack — that needs the .env secrets
+# cloud-init does NOT bring up the app stack -- that needs the .env secrets
 # you supply by hand.
 #
 # HOW TO USE: paste the entire contents into xneelo's "config script /
