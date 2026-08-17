@@ -23,7 +23,7 @@
 # =============================================================================
 
 hostname: auth
-fqdn: auth.example.co.za          # <-- set to your real DNS name
+fqdn: auth.growth-x.business        # <-- set to your real DNS name
 timezone: Africa/Johannesburg
 package_update: true
 package_upgrade: true
