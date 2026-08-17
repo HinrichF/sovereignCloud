@@ -40,6 +40,7 @@ users:
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHEdYL3EdIjLU0qiSTNSwEGzxpaCJIht+Ozn7mSUc86Q sovereign-cloud-admin
+
 # Baseline SSH hardening via native cloud-init directives. These are
 # filter-safe (no system-config path appears in the payload). bootstrap.sh adds
 # the full hardening drop-in after boot.
